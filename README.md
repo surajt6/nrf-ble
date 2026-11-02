@@ -1,119 +1,105 @@
-# nRF52840 Embassy Template
+# nRF52840 BLE Template
 
-A cargo-generate template for embedded Rust projects targeting the Nordic nRF52840 microcontroller using the Embassy async framework.
+A cargo-generate template for an nRF52840 BLE scanner using Embassy, the Nordic
+SoftDevice Controller (`nrf-sdc`), and TrouBLE. It logs discovered device addresses
+via RTT and highlights advertisements matching `MY_DEVICE_ADDRESS` in
+`src/ble_scanner.rs`.
 
 ## Prerequisites
 
-- [Rust](https://rustup.rs/) with `thumbv7em-none-eabi` target installed
-- [probe-rs](https://probe.rs/) for flashing and debugging
-- [cargo-generate](https://github.com/cargo-generate/cargo-generate) for creating projects from this template
-
-### Installation
+- Rust with the `thumbv7em-none-eabi` target installed
+- [cargo-generate](https://github.com/cargo-generate/cargo-generate)
+- [probe-rs](https://probe.rs/) and a connected SWD debug probe
+- LLVM/Clang for generating the Nordic controller bindings
 
 ```bash
-# Install the ARM Cortex-M4F target
 rustup target add thumbv7em-none-eabi
-
-# Install probe-rs
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/probe-rs/probe-rs/releases/latest/download/probe-rs-installer.sh | sh
-
-# Install cargo-generate
 cargo install cargo-generate
+
+# On Apple Silicon macOS
+brew install llvm
 ```
 
-## Usage
-
-Generate a new project from this template:
+## Generate a project
 
 ```bash
-cargo generate --git https://github.com/yourusername/nrf52-embassy-template
+cargo generate --git git@github.com:surajt6/nrf-ble.git --name my-ble-scanner
+cd my-ble-scanner
 ```
 
-You will be prompted for:
-- **Project Name**: Your project name (e.g., `my-nrf-project`)
-- **Authors**: Your name and email
-- **Enable Nordic SoftDevice**: Whether to configure memory layout for Bluetooth SoftDevice S140 7.3.0
+Generation fills in the package name, binary name, lockfile package name, and
+author metadata. Build the generated project; the template checkout contains
+placeholders.
 
-## What's Included
+## Build and run
 
-The generated project contains:
-
-- **LED Blink Example**: Simple async application that blinks an LED on pin P0_13
-- **Embassy Framework**: Modern async/await runtime for embedded Rust
-- **defmt Logging**: Efficient logging with RTT transport
-- **Memory Configuration**: Automatically configured based on SoftDevice selection
-- **probe-rs Integration**: Ready to flash and debug with `cargo run`
-
-## Hardware
-
-This template targets the **Nordic nRF52840** microcontroller:
-- ARM Cortex-M4F core
-- 1 MB Flash / 256 KB RAM (without SoftDevice)
-- 868 KB Flash / 128 KB RAM (with SoftDevice S140 7.3.0)
-
-Tested with development boards like:
-- nRF52840-DK
-- nRF52840 Dongle
-- Other nRF52840-based boards
-
-## Building and Running
+On Apple Silicon macOS, use Homebrew's LLVM tools:
 
 ```bash
-# Build the project
-cargo build --release
+# Build without connecting to hardware
+env PATH="/opt/homebrew/opt/llvm/bin:$PATH" \
+    LIBCLANG_PATH=/opt/homebrew/opt/llvm/lib \
+    CLANG_PATH=/opt/homebrew/opt/llvm/bin/clang \
+    cargo build --locked
 
-# Flash to device and view logs
-cargo run --release
+# Flash and display BLE scan logs
+env PATH="/opt/homebrew/opt/llvm/bin:$PATH" \
+    LIBCLANG_PATH=/opt/homebrew/opt/llvm/lib \
+    CLANG_PATH=/opt/homebrew/opt/llvm/bin/clang \
+    cargo r --locked
 ```
 
-The application will blink the LED on pin P0_13 and output "Blink!" messages via RTT.
+Add `--release` for an optimized build. On other systems, point these environment
+variables at the installed LLVM/Clang tools. Press Ctrl-C to end the log session.
 
-## Project Structure
+## Dependency and runtime configuration
 
-```
-.
-├── Cargo.toml              # Project dependencies and metadata
-├── .cargo/
-│   └── config.toml         # Build configuration and probe-rs runner
-├── memory.x                # Memory layout (varies based on SoftDevice)
-├── build.rs                # Build script for linker configuration
-└── src/
-    └── main.rs             # Main application code
-```
+- Embassy executor 0.10 uses `platform-cortex-m` and task creation returns the
+  fallible spawn token.
+- Embassy nRF 0.11, `nrf-sdc` 0.4, and TrouBLE 0.8 use published crates. The
+  lockfile records the resolved versions; no Git patches are required.
+- Keep `bt-hci` on 0.10 to match the controller and host dependencies.
+- TrouBLE 0.8 initializes its security RNG from the controller. Its stack builder,
+  central handle, and scanner APIs are configured in `src/ble_scanner.rs`.
+- The controller configuration in `build_sdc` requires a **2784-byte** buffer.
+  If controller features or dependencies change, check the required size reported
+  by `nrf-sdc` and adjust `sdc::Mem` accordingly.
+- The probe runner uses `--no-catch-reset`: Embassy can reset after updating UICR
+  configuration on the first boot after an erase. Without this option, probe-rs
+  can stop at the reset entry point (`0x100`) with `Firmware exited unexpectedly:
+  Exception` and an unwind error. HardFault detection remains enabled.
+
+The firmware links the controller and MPSL directly. It uses the nRF52840's full
+1 MB flash / 256 KB RAM layout starting at flash address zero, and does not
+require a separately flashed S140 SoftDevice image.
 
 ## Customization
 
-### Changing the LED Pin
+Set `MY_DEVICE_ADDRESS` in `src/ble_scanner.rs` to the device to highlight. The
+`BdAddr` byte array is least-significant-byte first, the reverse of the usual
+printed address. All discovered addresses are still logged.
 
-Edit `src/main.rs:13` to use a different GPIO pin:
+The scanner uses a fixed random local address for development. Give each device
+an appropriate unique address when adapting the template for deployment.
 
-```rust
-let mut led = Output::new(p.P0_06, Level::Low, OutputDrive::Standard);
+## Project structure
+
+```text
+Cargo.toml           Dependencies and generated package metadata
+Cargo.lock           Resolved dependency versions
+.cargo/config.toml   Target, probe runner, and logging configuration
+memory.x             nRF52840 flash and RAM layout
+build.rs             Linker configuration
+src/main.rs          Embassy, MPSL, and controller initialization
+src/ble_scanner.rs   BLE host, scanning, and advertisement logging
 ```
 
-### Adding Dependencies
+## Validate local template changes
 
-Add Embassy HAL peripherals or other crates to `Cargo.toml`:
-
-```toml
-embassy-nrf = { version = "0.9.0", features = ["defmt", "nrf52840", "time-driver-rtc1", "gpiote"] }
+```bash
+cargo generate --path . --name template-check
+cd template-check
 ```
 
-### Using SoftDevice (Bluetooth)
-
-If you selected SoftDevice support during generation, the memory layout is pre-configured for SoftDevice S140 7.3.0. You'll need to:
-
-1. Flash the SoftDevice to your device first
-2. Add the `nrf-softdevice` crate for Bluetooth functionality
-3. Update your code to initialize the SoftDevice
-
-## License
-
-This template is provided as-is for use in your projects.
-
-## Resources
-
-- [Embassy Documentation](https://embassy.dev/)
-- [nRF52840 Product Specification](https://www.nordicsemi.com/Products/nRF52840)
-- [probe-rs Documentation](https://probe.rs/)
-- [defmt Book](https://defmt.ferrous-systems.com/)
+Run the build commands above, then `cargo fmt --check`. Hardware scanning requires
+a connected nRF52840 and debug probe.

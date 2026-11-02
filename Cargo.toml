@@ -1,13 +1,13 @@
 [package]
-name = "nrftest"
+name = "{{project-name}}"
 version = "0.1.0"
 edition = "2024"
-authors = ["Suraj <contact@surajt.com>"]
+authors = ["{{authors}}"]
 
 [dependencies]
-embassy-executor = { version = "0.9.1", features = ["arch-cortex-m", "executor-thread", "defmt"] }
-embassy-nrf = { version = "0.9.0", features = ["defmt", "nrf52840", "time-driver-rtc1"] }
-embassy-time = { version = "0.5.0" }
+embassy-executor = { version = "0.10", features = ["platform-cortex-m", "executor-thread", "defmt"] }
+embassy-nrf = { version = "0.11", features = ["defmt", "nrf52840", "time-driver-rtc1"] }
+embassy-time = { version = "0.5.1" }
 embassy-futures = "0.1.1"
 defmt = "1"
 log = "0.4"
@@ -17,20 +17,14 @@ cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.5"
 static_cell = "2"
 nrf-sdc = { version = "0.4", features = ["defmt", "peripheral", "central", "nrf52840"] }
-nrf-mpsl = { version = "0.3", features = ["defmt"] }
-bt-hci = { version = "0.7", features = ["defmt"] }
-heapless = "0.9.2"
-trouble-host = { version = "0.5.1", features = ["scan", "defmt", "security"] }
+bt-hci = { version = "0.10", features = ["defmt"] }
+heapless = "0.9.3"
+trouble-host = { version = "0.8", features = ["scan", "defmt", "security"] }
 
 [profile.release]
 debug = 2
 
 [[bin]]
-name = "nrftest"
+name = "{{project-name}}"
 test = false
 bench = false
-
-[patch.crates-io]
-nrf-sdc = { git = "https://github.com/alexmoon/nrf-sdc.git", rev = "4b4db698b7db554ca192bf9e322c5669d745d90b" }
-nrf-mpsl = { git = "https://github.com/alexmoon/nrf-sdc.git", rev = "4b4db698b7db554ca192bf9e322c5669d745d90b" }
-trouble-host = { git = "https://github.com/embassy-rs/trouble", rev = "e658d7e1a6d669788d3cd8e23f3d078e55952772" }

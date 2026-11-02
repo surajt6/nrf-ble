@@ -1,5 +1,6 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
-runner = "probe-rs run --chip nRF52840_xxAA"
+# Embassy resets after updating UICR on first boot; allow that reset to complete.
+runner = "probe-rs run --chip nRF52840_xxAA --no-catch-reset"
 
 [build]
 target = "thumbv7em-none-eabi"

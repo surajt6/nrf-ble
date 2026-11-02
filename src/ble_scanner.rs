@@ -27,18 +27,16 @@ where
         HostResources::new();
     let stack: Stack<'_, C, _> = trouble_host::new(controller, &mut resources)
         .set_random_address(address)
-        .set_io_capabilities(IoCapabilities::NoInputNoOutput);
+        .set_io_capabilities(IoCapabilities::NoInputNoOutput)
+        .build();
 
-    let Host {
-        central,
-        mut runner,
-        ..
-    } = stack.build();
+    let mut central = stack.central();
+    let mut runner = stack.runner();
 
     let printer = Printer {
         seen: RefCell::new(Deque::new()),
     };
-    let mut scanner = Scanner::new(central);
+    let mut scanner = Scanner::new(&mut central);
     let _ = join(runner.run_with_handler(&printer), async {
         let config = ScanConfig::default();
         info!("Starting Scan!");

@@ -35,10 +35,10 @@ fn build_sdc<'d, const N: usize>(
     mem: &'d mut sdc::Mem<N>,
 ) -> Result<nrf_sdc::SoftdeviceController<'d>, nrf_sdc::Error> {
     sdc::Builder::new()?
-        .support_scan()?
-        .support_ext_scan()?
-        .support_central()?
-        .support_ext_central()?
+        .support_scan()
+        .support_ext_scan()
+        .support_central()
+        .support_ext_central()
         .central_count(1)?
         .build(p, rng, mpsl, mem)
 }
@@ -59,7 +59,7 @@ async fn main(spawner: Spawner) {
     let mpsl = MPSL.init(unwrap!(mpsl::MultiprotocolServiceLayer::new(
         mpsl_p, Irqs, lfclk_cfg
     )));
-    spawner.spawn(mpsl_task(&*mpsl)).unwrap();
+    spawner.spawn(mpsl_task(&*mpsl).unwrap());
 
     let sdc_p = sdc::Peripherals::new(
         p.PPI_CH17, p.PPI_CH18, p.PPI_CH20, p.PPI_CH21, p.PPI_CH22, p.PPI_CH23, p.PPI_CH24,
@@ -68,7 +68,8 @@ async fn main(spawner: Spawner) {
 
     let mut rng = rng::Rng::new(p.RNG, Irqs);
 
-    let mut sdc_mem = sdc::Mem::<2712>::new();
+    // nrf-sdc 0.4 requires 2784 bytes for the configuration in build_sdc.
+    let mut sdc_mem = sdc::Mem::<2784>::new();
     let sdc = unwrap!(build_sdc(sdc_p, &mut rng, mpsl, &mut sdc_mem));
 
     Timer::after(Duration::from_millis(200)).await;
