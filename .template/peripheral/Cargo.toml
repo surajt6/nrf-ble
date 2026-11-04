@@ -16,9 +16,12 @@ defmt = "1"
 log = "0.4"
 defmt-rtt = "1"
 panic-probe = { version = "1", features = ["print-defmt"] }
-cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
+cortex-m = "0.7.6"
 cortex-m-rt = "0.7.5"
 static_cell = "2"
+# nrf-mpsl provides the critical section: it keeps the MPSL radio, timer, and RTC
+# interrupts enabled. Do not enable cortex-m's critical-section-single-core.
+nrf-mpsl = { version = "0.4", features = ["defmt", "critical-section-impl"] }
 nrf-sdc = { version = "0.4", features = ["defmt", "peripheral", "central", "nrf52840"] }
 bt-hci = { version = "0.10", features = ["defmt"] }
 heapless = "0.9.3"

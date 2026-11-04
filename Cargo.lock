@@ -1085,6 +1085,7 @@ checksum = "61c3fae25579f57d60d5cbc9b1838bc0c7f13539a5ede1667dc2e27fc0f539d2"
 dependencies = [
  "cfg-if",
  "cortex-m",
+ "critical-section",
  "defmt 1.2.0",
  "embassy-nrf",
  "embassy-sync",
@@ -1143,27 +1144,6 @@ dependencies = [
  "doxygen-rs",
  "nrf-mpsl-sys",
  "winnow",
-]
-
-[[package]]
-name = "{{project-name}}"
-version = "0.1.0"
-dependencies = [
- "bt-hci",
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.2.0",
- "defmt-rtt",
- "embassy-executor",
- "embassy-futures",
- "embassy-nrf",
- "embassy-time",
- "heapless",
- "log",
- "nrf-sdc",
- "panic-probe",
- "static_cell",
- "trouble-host",
 ]
 
 [[package]]
@@ -1396,6 +1376,28 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "{{project-name}}"
+version = "0.1.0"
+dependencies = [
+ "bt-hci",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.2.0",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-nrf",
+ "embassy-time",
+ "heapless",
+ "log",
+ "nrf-mpsl",
+ "nrf-sdc",
+ "panic-probe",
+ "static_cell",
+ "trouble-host",
+]
 
 [[package]]
 name = "scoped-tls"

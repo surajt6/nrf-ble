@@ -1,3 +1,8 @@
+let chip = variable::get("chip");
+if chip != "nrf52840" && chip != "nrf54l15" {
+    throw "chip must be nrf52840 or nrf54l15";
+}
+
 let mode = variable::get("mode");
 if mode != "scanner" && mode != "peripheral" {
     throw "mode must be scanner or peripheral";
@@ -61,13 +66,29 @@ if mode == "peripheral" {
     }
     variable::set("device_address_bytes", encoded);
 
-    for path in ["Cargo.toml", "Cargo.lock", "memory.x", "src/main.rs"] {
-        file::delete(path);
-        file::rename(".template/peripheral/" + path, path);
-    }
     for name in ["ble_peripheral.rs", "csprng.rs"] {
         file::rename(".template/peripheral/src/" + name, "src/" + name);
     }
     file::delete("src/ble_scanner.rs");
+}
+
+// Chip- and mode-specific firmware files replace the nRF52840 scanner defaults.
+let variant = "";
+if chip == "nrf54l15" {
+    variant = ".template/nrf54l15/";
+    file::delete(".cargo/config.toml");
+    file::rename(variant + ".cargo/config.toml", ".cargo/config.toml");
+    if variable::get("xiao_rf_switch") {
+        file::rename(variant + "src/xiao.rs", "src/xiao.rs");
+    }
+}
+if mode == "peripheral" {
+    variant = if chip == "nrf54l15" { variant + "peripheral/" } else { ".template/peripheral/" };
+}
+if variant != "" {
+    for path in ["Cargo.toml", "Cargo.lock", "memory.x", "src/main.rs"] {
+        file::delete(path);
+        file::rename(variant + path, path);
+    }
 }
 file::delete(".template");

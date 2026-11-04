@@ -1,6 +1,14 @@
 [template]
 cargo_generate_version = ">=0.25.0"
-ignore = ["tests", "target"]
+ignore = ["tests", "target", "docs"]
+
+[placeholders.chip]
+type = "string"
+prompt = "Target chip"
+choices = ["nrf52840", "nrf54l15"]
+
+[conditional.'chip == "nrf54l15"'.placeholders]
+xiao_rf_switch = { type = "bool", prompt = "Seeed XIAO nRF54L15 board support (crystal caps, RF switch, LED)?" }
 
 [placeholders.mode]
 type = "string"

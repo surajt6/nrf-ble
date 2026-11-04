@@ -1136,6 +1136,7 @@ checksum = "61c3fae25579f57d60d5cbc9b1838bc0c7f13539a5ede1667dc2e27fc0f539d2"
 dependencies = [
  "cfg-if",
  "cortex-m",
+ "critical-section",
  "defmt 1.2.0",
  "embassy-nrf",
  "embassy-sync",
@@ -1197,33 +1198,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "{{project-name}}"
-version = "0.1.0"
-dependencies = [
- "bt-hci",
- "cortex-m",
- "cortex-m-rt",
- "defmt 1.2.0",
- "defmt-rtt",
- "embassy-crypto",
- "embassy-executor",
- "embassy-futures",
- "embassy-nrf",
- "embassy-sync",
- "embassy-time",
- "embedded-storage-async",
- "heapless 0.9.3",
- "log",
- "nrf-sdc",
- "panic-probe",
- "rand_chacha",
- "sequential-storage",
- "serde",
- "static_cell",
- "trouble-host",
-]
-
-[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1255,6 +1229,34 @@ checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
 dependencies = [
  "elliptic-curve",
  "primeorder",
+]
+
+[[package]]
+name = "{{project-name}}"
+version = "0.1.0"
+dependencies = [
+ "bt-hci",
+ "cortex-m",
+ "cortex-m-rt",
+ "defmt 1.2.0",
+ "defmt-rtt",
+ "embassy-crypto",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-nrf",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-storage-async",
+ "heapless 0.9.3",
+ "log",
+ "nrf-mpsl",
+ "nrf-sdc",
+ "panic-probe",
+ "rand_chacha",
+ "sequential-storage",
+ "serde",
+ "static_cell",
+ "trouble-host",
 ]
 
 [[package]]
