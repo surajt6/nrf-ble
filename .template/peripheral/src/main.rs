@@ -1,0 +1,103 @@
+#![no_std]
+#![no_main]
+
+use core::ops::Range;
+
+use defmt::*;
+use embassy_executor::Spawner;
+use embassy_nrf::mode::Async;
+use embassy_nrf::peripherals::RNG;
+use embassy_nrf::{bind_interrupts, qspi, rng};
+use embassy_time::{Duration, Timer};
+use nrf_sdc::mpsl::Flash;
+use static_cell::StaticCell;
+use {defmt_rtt as _, panic_probe as _};
+
+use nrf_sdc::mpsl::MultiprotocolServiceLayer;
+use nrf_sdc::{self as sdc, mpsl};
+mod ble_peripheral;
+mod csprng;
+
+unsafe extern "C" {
+    static __storage_start: u8;
+    static __storage_end: u8;
+}
+
+fn storage_range() -> Range<u32> {
+    unsafe {
+        let start = &__storage_start as *const u8 as u32;
+        let end = &__storage_end as *const u8 as u32;
+        start..end
+    }
+}
+
+bind_interrupts!(struct Irqs {
+    RNG => rng::InterruptHandler<RNG>;
+    EGU0_SWI0 => nrf_sdc::mpsl::LowPrioInterruptHandler;
+    CLOCK_POWER => nrf_sdc::mpsl::ClockInterruptHandler;
+    RADIO => nrf_sdc::mpsl::HighPrioInterruptHandler;
+    TIMER0 => nrf_sdc::mpsl::HighPrioInterruptHandler;
+    RTC0 => nrf_sdc::mpsl::HighPrioInterruptHandler;
+    QSPI => qspi::InterruptHandler<embassy_nrf::peripherals::QSPI>;
+});
+
+#[embassy_executor::task]
+async fn mpsl_task(mpsl: &'static MultiprotocolServiceLayer<'static>) -> ! {
+    mpsl.run().await
+}
+
+fn build_sdc<'d, const N: usize>(
+    p: nrf_sdc::Peripherals<'d>,
+    rng: &'d mut rng::Rng<Async>,
+    mpsl: &'d MultiprotocolServiceLayer,
+    mem: &'d mut sdc::Mem<N>,
+) -> Result<nrf_sdc::SoftdeviceController<'d>, nrf_sdc::Error> {
+    sdc::Builder::new()?
+        .support_adv()
+        .support_peripheral()
+        .peripheral_count(1)?
+        .adv_count(1)?
+        .build(p, rng, mpsl, mem)
+}
+
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    let p = embassy_nrf::init(Default::default());
+    let mpsl_p =
+        mpsl::Peripherals::new(p.RTC0, p.TIMER0, p.TEMP, p.PPI_CH19, p.PPI_CH30, p.PPI_CH31);
+    let lfclk_cfg = mpsl::raw::mpsl_clock_lfclk_cfg_t {
+        source: mpsl::raw::MPSL_CLOCK_LF_SRC_RC as u8,
+        rc_ctiv: mpsl::raw::MPSL_RECOMMENDED_RC_CTIV as u8,
+        rc_temp_ctiv: mpsl::raw::MPSL_RECOMMENDED_RC_TEMP_CTIV as u8,
+        accuracy_ppm: mpsl::raw::MPSL_DEFAULT_CLOCK_ACCURACY_PPM as u16,
+        skip_wait_lfclk_started: mpsl::raw::MPSL_DEFAULT_SKIP_WAIT_LFCLK_STARTED != 0,
+    };
+    static MPSL: StaticCell<MultiprotocolServiceLayer> = StaticCell::new();
+    static SESSION_MEM: StaticCell<mpsl::SessionMem<1>> = StaticCell::new();
+    let mpsl = MPSL.init(unwrap!(mpsl::MultiprotocolServiceLayer::with_timeslots(
+        mpsl_p,
+        Irqs,
+        lfclk_cfg,
+        SESSION_MEM.init(mpsl::SessionMem::new())
+    )));
+    spawner.spawn(mpsl_task(&*mpsl).unwrap());
+
+    let sdc_p = sdc::Peripherals::new(
+        p.PPI_CH17, p.PPI_CH18, p.PPI_CH20, p.PPI_CH21, p.PPI_CH22, p.PPI_CH23, p.PPI_CH24,
+        p.PPI_CH25, p.PPI_CH26, p.PPI_CH27, p.PPI_CH28, p.PPI_CH29,
+    );
+
+    let mut rng = rng::Rng::new(p.RNG, Irqs);
+    let mut seed = [0u8; 32];
+    rng.blocking_fill_bytes(&mut seed);
+    csprng::seed(seed);
+
+    // nrf-sdc 0.4 requires 1904 bytes for this peripheral configuration.
+    let mut sdc_mem = sdc::Mem::<1904>::new();
+    let sdc = unwrap!(build_sdc(sdc_p, &mut rng, mpsl, &mut sdc_mem));
+    let mut flash = Flash::take(mpsl, p.NVMC);
+
+    Timer::after(Duration::from_millis(200)).await;
+
+    ble_peripheral::run(sdc, &mut flash, storage_range()).await;
+}

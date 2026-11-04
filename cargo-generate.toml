@@ -1,0 +1,16 @@
+[template]
+cargo_generate_version = ">=0.25.0"
+ignore = ["tests", "target"]
+
+[placeholders.mode]
+type = "string"
+prompt = "BLE mode"
+choices = ["scanner", "peripheral"]
+
+[conditional.'mode == "peripheral"'.placeholders]
+advertised_name = { type = "string", prompt = "Advertised name (1–22 UTF-8 bytes)" }
+gatt_name = { type = "string", prompt = "GATT device name (1–22 UTF-8 bytes)" }
+device_address = { type = "string", prompt = "Static-random Bluetooth address (AA:BB:CC:DD:EE:FF)" }
+
+[hooks]
+pre = [".template/prepare.rhai"]
