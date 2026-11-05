@@ -162,6 +162,57 @@ because of the factory firmware's write protection, erase the chip once:
 probe-rs erase --chip nRF54L15 --allow-erase-all
 ```
 
+### Flashing succeeds but no RTT logs appear
+
+On a XIAO nRF54L15 generated peripheral project using `embassy-nrf` 0.11.0,
+startup was observed to stall inside `embassy_nrf::init`, before the first
+application log. Attaching with `probe-rs attach --always-print-stacktrace`
+and pressing Ctrl-C showed `RtcDriver::on_interrupt` / `GRTC_2` interrupting
+`RtcDriver::init` at the IRQ enable step.
+
+The secure application's GRTC IRQ2 had `INTEN=0x1` and `INTPEND=0x1`:
+compare channel 0 was enabled and pending. Embassy's driver only services
+CC11 and masks only CC11 during initialization, leaving the channel 0
+interrupt firing repeatedly. Treat retained GRTC interrupt state as a startup
+hazard when resetting through a debugger.
+
+Workaround for this secure application: clear IRQ2's interrupt enables before
+calling `embassy_nrf::init`, before MPSL or any other GRTC user is initialized:
+
+```rust
+info!("Starting firmware");
+let grtc = embassy_nrf::pac::GRTC;
+debug!(
+    "GRTC IRQ2 enable={=u32:x}, pending={=u32:x}",
+    grtc.inten(2).read().0,
+    grtc.intpend(2).read().0
+);
+grtc.intenclr(2).write(|w| w.0 = u32::MAX);
+// Configure board crystals and HAL config as usual, then:
+let p = embassy_nrf::init(config);
+info!("Peripherals initialized");
+```
+
+Access to `embassy_nrf::pac` requires the `unstable-pac` feature, already
+enabled by the XIAO template option. This workaround was verified in the
+generated `slave-master` project on 2026-11-05: startup logs appeared and BLE
+advertising started. It is documented here for generated projects; the template
+source has not yet been changed to apply it automatically. This does not resolve
+the separate CC11 sharing concern described above.
+
+If multiple probes are connected, select the XIAO explicitly. For example,
+with the probe used for that verification:
+
+```bash
+env PATH="/opt/homebrew/opt/llvm/bin:$PATH" \
+  LIBCLANG_PATH=/opt/homebrew/opt/llvm/lib \
+  CLANG_PATH=/opt/homebrew/opt/llvm/bin/clang \
+  cargo r -- --probe 2886:0066:7739F179
+```
+
+Use your board's identifier from `probe-rs list`. With the current debug build,
+flashing took about 20 seconds before application logs could appear.
+
 ## Customization
 
 In scanner mode, set `MY_DEVICE_ADDRESS` in `src/ble_scanner.rs` to the device to highlight. The

@@ -29,7 +29,7 @@ Then run `cargo r` in the project, using the LLVM environment from the README.
 
 | # | Check | How | Pass criteria | If it fails |
 |---|-------|-----|---------------|-------------|
-| 1 | Flashing | `cargo r` | Firmware starts and RTT logs appear | Run `probe-rs erase --chip nRF54L15 --allow-erase-all` once (the factory firmware may write-protect the NVM) |
+| 1 | Flashing | `cargo r` | Firmware starts and RTT logs appear | For write protection, erase once as described in the README. If flashing succeeds but startup is silent, see [GRTC startup troubleshooting](../README.md#flashing-succeeds-but-no-rtt-logs-appear) |
 | 2 | Clocks start | Startup logs | No MPSL assert or panic; `Our address = …` is logged | Check the 128 MHz setting and crystal sources in `main.rs`, and the INTCAP values in `xiao.rs` |
 | 3 | Controller memory | Startup logs | `nrf-sdc` warns `Memory buffer too big. N bytes needed` | Set `sdc::Mem::<N>` in `src/main.rs` to N for this mode, then update `.template/nrf54l15[/peripheral]/src/main.rs` |
 | 4 | Alive LED | Watch the board | User LED blinks once per second | Check P2.00 and the `blink_led` task |
@@ -57,6 +57,22 @@ Both chips now use `nrf-mpsl`'s `critical-section-impl` instead of cortex-m's
 | 4 | Stability | Connection held for at least 10 minutes |
 
 ## Record results
+
+### 2026-11-05: XIAO nRF54L15 startup logging
+
+Tested the generated `slave-master` peripheral project with `embassy-nrf`
+0.11.0 and probe `2886:0066:7739F179`. The generated workspace was uncommitted.
+Flashing succeeded, but firmware stalled in `embassy_nrf::init`. A live stack
+trace showed `GRTC_2` repeatedly interrupting time-driver initialization.
+Startup instrumentation reported IRQ2 `INTEN=0x1`, `INTPEND=0x1`.
+
+Clearing IRQ2 interrupt enables before HAL initialization restored startup.
+Observed `Peripherals initialized`, `Our address`, `Starting advertising and
+GATT service`, and `[adv] advertising`. The build passed. The controller reported
+a required buffer size of 1912 bytes; the configured 8192-byte buffer was left
+unchanged. Pairing, bond persistence, and long-duration stability were not
+verified in this session. See the README for the workaround; this verification
+does not mean it has been applied to the template sources.
 
 Note the board, date, commit, and any adjusted values (SDC memory sizes, antenna
 polarity) in the commit that applies them.

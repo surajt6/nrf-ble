@@ -112,9 +112,7 @@ async fn main(spawner: Spawner) {
 
     let mut rng = Cracen::new_blocking(p.CRACEN);
 
-    // Oversized until measured on hardware: nrf-sdc logs the exact requirement
-    // ("Memory buffer too big. N bytes needed") at startup.
-    let mut sdc_mem = sdc::Mem::<8192>::new();
+    let mut sdc_mem = sdc::Mem::<1912>::new();
     let sdc = unwrap!(build_sdc(sdc_p, &mut rng, mpsl, &mut sdc_mem));
 
     Timer::after(Duration::from_millis(200)).await;
